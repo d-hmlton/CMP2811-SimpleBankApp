@@ -15,6 +15,64 @@ Good luck!
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <stack> //Used to store 'Transaction' objects for the 'Account' class
+#include <string>
+#include <ctime> //Needed to store a 'time_t' timestamp for the 'Transaction' class
+
+//- CLASS DEFINITIONS -
+//Transaction stores data on each deposit and withdrawal
+class Transaction
+{
+	std::string desc; //The nature of the transaction
+	time_t timestamp; //The date & time
+	double value; //The (monetary) value
+
+public:
+	void toString() {}
+};
+
+//InterestEarning is a sub-type of abstract class called an interface - pure virt funcs ONLY
+class InterestEarning
+{
+public:
+	virtual void computeInterest() = 0;
+};
+
+//Account is an abstract class, meaning you can't create instances for it
+class Account
+{
+	double balance;
+	std::stack<Transaction*> history;
+
+public:
+	virtual void deposit() = 0;
+	virtual void toString() = 0;
+	virtual void withdraw() = 0;
+};
+
+//Current accounts don't have interest
+class Current : public Account
+{
+	int overdraft = 500;
+
+public:
+	void deposit() {}
+	void toString() {}
+	void withdraw() {}
+};
+
+//Savings accounts have 0.85% interest normally, 1.15% as ISAs
+class Savings : public Account, public InterestEarning
+{
+	float interestRate;
+	bool isa;
+
+public:
+	void computeInterest() {}
+	void deposit() {}
+	void toString() {}
+	void withdraw() {}
+};
 
 int main()
 {
