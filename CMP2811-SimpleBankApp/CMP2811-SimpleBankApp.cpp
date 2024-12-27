@@ -41,6 +41,7 @@ public:
 //Account is an abstract class, meaning you can't create instances for it
 class Account
 {
+protected:
 	double balance;
 	std::stack<Transaction*> history;
 
@@ -56,6 +57,8 @@ class Current : public Account
 	int overdraft = 500;
 
 public:
+	Current(double initial) { balance = initial; }
+
 	void deposit() {}
 	void toString() {}
 	void withdraw() {}
@@ -74,13 +77,28 @@ public:
 	void withdraw() {}
 };
 
+//- STANDARD FUNCTIONS -
+//When called, 'options' will output help for the commands the program can execute
+void options() {
+	std::cout << "OPTIONS:" << std::endl;
+	std::cout << "open [type] [initial_deposit] - Open a current (1), savings (2) or ISA (3) account" << std::endl;
+	std::cout << "view [index] - View balance and recent transactions" << std::endl;
+	std::cout << "withdraw [sum] - Withdraw funds from most recently viewed account" << std::endl;
+	std::cout << "deposit [sum] - Deposit funds into most recently viewed account" << std::endl;
+	std::cout << "transfer [source] [destination] [sum] - Transfer funds between accounts" << std::endl;
+	std::cout << "project [years] - Project balance forward in time for most recently viewed account" << std::endl;
+	std::cout << "exit - Close this application" << std::endl;
+	std::cout << "options - View these options again" << std::endl;
+};
+
 int main()
 {
 	std::vector <std::string> parameters;
 	std::string userCommand;
 	// you may also want to store a collection of opened accounts here
 
-	std::cout << "~~~ Welcome to LincBank! ~~~" << std::endl;
+	std::cout << "~~~ Welcome to LincBank! ~~~\n" << std::endl;
+	options();
 
 	while (userCommand != "exit")
 	{
