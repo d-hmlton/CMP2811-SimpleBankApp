@@ -71,6 +71,12 @@ class Savings : public Account, public InterestEarning
 	bool isa;
 
 public:
+	Savings(bool type, double initial) {
+		if (type == false) { isa = false; }
+		if (type == true) { isa = true; }
+		balance = initial;
+	}
+
 	void computeInterest() {}
 	void deposit() {}
 	void toString() {}
@@ -91,6 +97,20 @@ void options() {
 	std::cout << "options - View these options again" << std::endl;
 };
 
+//Takes a string and sees if it can be converted to a double. If it can't, returns -1. If it can, returns 0.
+int parameterValidation(std::string input) {
+	try {
+		double output = std::stod(input);
+	} catch (std::invalid_argument) { //If the input isn't a valid number
+		return -1;
+	}
+
+	return 0; //No errors found
+}
+
+//Vector to store the open accounts
+std::vector <Account*> openAccounts;
+
 int main()
 {
 	std::vector <std::string> parameters;
@@ -100,7 +120,7 @@ int main()
 	std::cout << "~~~ Welcome to LincBank! ~~~\n" << std::endl;
 	options();
 
-	while (userCommand != "exit")
+	while (userCommand != "exit") //Will loop until user enters "exit"
 	{
 		parameters.clear(); // clear ready for next command
 		std::cout << std::endl << ">>> ";
@@ -123,10 +143,21 @@ int main()
 
 		if (command.compare("options") == 0)
 		{
-			// display the various commands to the user
+			options(); //Calls the options function
 		}
 		else if (command.compare("open") == 0)
 		{
+			if (parameterValidation(parameters[2]) == -1) {
+				std::cout << "The input was not a valid number. Please try again." << std::endl;
+				continue; //Jumps to the next loop
+			}
+			
+			command = parameters[1];
+			double initial = parameters[2];
+			if (command.compare("1") == 0) { openAccounts.push_back(new Current()); }
+			else if (command.compare("2") == 0) {}
+			else if (command.compare("3") == 0) {}
+
 			// allow a user to open an account
 			// e.g., Account* a = new Savings(...);
 		}
@@ -174,3 +205,6 @@ int main()
 //   4. Use the Error List window to view errors
 //   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
 //   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+
+// References:
+// "How to use std::stod properly" [https://stackoverflow.com/questions/26008321/how-to-use-stdstod-properly]
