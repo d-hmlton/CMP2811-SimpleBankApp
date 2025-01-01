@@ -16,6 +16,7 @@ Good luck!
 #include <sstream>
 #include <vector>
 #include <stack> //Used to store 'Transaction' objects for the 'Account' class
+#include <cmath> //Used to calculate the projected interest for the 'Savings' class
 #include <string>
 #include <ctime> //Needed to store a 'time_t' timestamp for the 'Transaction' class
 
@@ -28,7 +29,15 @@ class Transaction
 	double value; //The (monetary) value
 
 public:
-	void toString() {}
+	Transaction(std::string x, double y) {
+		desc = x;
+		value = y;
+		timestamp = time(nullptr);
+	}
+
+	void toString() {
+		std::cout << "-- " << desc << ": \x9C" << printf("%g", value) << " on " << timestamp << std::endl;
+	}
 };
 
 //InterestEarning is a sub-type of abstract class called an interface - pure virt funcs ONLY
@@ -41,6 +50,10 @@ public:
 //Account is an abstract class, meaning you can't create instances for it
 class Account
 {
+protected:
+	double balance;
+	std::stack<Transaction*> history;
+
 public:
 	virtual void deposit() = 0;
 	virtual void toString() = 0;
@@ -50,37 +63,75 @@ public:
 //Current accounts don't have interest
 class Current : public Account
 {
-	int overdraft = 500;
-	double balance;
-	std::stack<Transaction*> history;
+	int overdraft = -500; //Balance cannot go below this number
 
 public:
-	Current(double initial) { balance = initial; }
+	Current(double x) {
+		balance = x;
+		history.push(new Transaction("initial deposit", balance));
+	}
 
-	void deposit() {}
-	void toString() {}
-	void withdraw() {}
+	void deposit(double money) {
+		balance = balance + money;
+		history.push(new Transaction("deposit", money));
+	}
+
+	void toString() {
+		std::cout << "Current account | Balance: \x9C" << printf("%g", balance) << std::endl;
+	}
+
+	void withdraw(double money) {
+		//Checks if the withdrawal would push the account over the overdraft
+		if ((balance - money) < overdraft) {
+			std::cout << "Withdrawals and transfers must not exceed the account overdraft!" << std::endl;
+			return;
+		}
+		balance = balance - money;
+		history.push(new Transaction("withdrawal", -money));
+	}
 };
 
 //Savings accounts have 0.85% interest normally, 1.15% as ISAs
 class Savings : public Account, public InterestEarning
 {
-	double balance;
 	double interestRate;
-	bool isa;
+	bool isIsa;
 
 public:
-	Savings(double initial, bool isIsa) {
-		isa = false; //Default setting on regular accounts
+	Savings(double x, bool y) {
+		balance = x;
+		isIsa = y;
 		interestRate = 0.85; //Default rate on regular accounts
-		if (isIsa == true) { isa = true; interestRate = 1.15; }
-		balance = initial;
+		if (isIsa == true) { interestRate = 1.15; } //ISA rate
+		history.push(new Transaction("initial deposit", balance));
 	}
 
-	void computeInterest() {}
-	void deposit() {}
-	void toString() {}
-	void withdraw() {}
+	void computeInterest(int years) {
+		int months = 12 * years; //This is "n * t" in the equation. Will be the exponential later
+		double decInterest = interestRate / 100; //The interest rate must be in DECIMAL FORM!
+
+		double projection = (1 + (decInterest / 12)); //Interest rate is divided by the months in a year, then added to 1
+		projection = pow(projection, months); //Projection is then calculated to the power of the number of months
+		projection = balance * projection; //Finally, the balance is multiplied by the result of the interest formula
+		std::cout << "Projected balance: \x9C" << projection << std::endl;
+	}
+
+	void deposit(double money) {
+		balance = balance + money;
+		history.push(new Transaction("deposit", money));
+	}
+
+	void toString() {
+		if (isIsa == false) { std::cout << "Savings account | Balance: \x9C" << printf("%g", balance) << std::endl; }
+		if (isIsa == true) { std::cout << "ISA account | Balance: \x9C" << printf("%g", balance) << std::endl; }
+	}
+
+	void withdraw(double money) {
+		//Checks if the withdrawal would make the balance go below zero
+		if ((balance - money) < 0) {
+			std::cout << "Withdrawals and transfers cannot take the account balance below zero!" << std::endl;
+		}
+	}
 };
 
 //- STANDARD FUNCTIONS -
@@ -164,7 +215,6 @@ int main()
 			//Current account
 			if (type.compare("1") == 0) {
 				openAccounts.push_back(new Current(initial)); //New current account!
-
 				std::cout << "Current account created!" << std::endl; //Output message (current)
 			} 
 
@@ -185,10 +235,10 @@ int main()
 					isIsa = true; //User requested an ISA account - sets to true
 				} 
 
+				//Runs for savings + ISA
 				openAccounts.push_back(new Savings(initial, isIsa)); //New savings (normal/isa) account!
-
-				if (isIsa == false) { std::cout << "Savings account created!" << std::endl; } //Savings message (current)
-				if (isIsa == true) { std::cout << "ISA account created!" << std::endl; } //ISA message (current)
+				if (isIsa == false) { std::cout << "Savings account created!" << std::endl; } //Output message (savings)
+				if (isIsa == true) { std::cout << "ISA account created!" << std::endl; } // Output message (isa)
 			}
 
 			//If the first parameter (type) isn't one of the three valid inputs
@@ -206,6 +256,8 @@ int main()
 		//VIEW ACCOUNT(S)
 		else if (command.compare("view") == 0)
 		{
+			
+
 			// display an account according to an index (starting from 1)
 			// alternatively, display all accounts if no index is provided
 		}
