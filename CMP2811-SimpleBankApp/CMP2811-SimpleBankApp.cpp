@@ -41,10 +41,6 @@ public:
 //Account is an abstract class, meaning you can't create instances for it
 class Account
 {
-protected:
-	double balance;
-	std::stack<Transaction*> history;
-
 public:
 	virtual void deposit() = 0;
 	virtual void toString() = 0;
@@ -55,6 +51,8 @@ public:
 class Current : public Account
 {
 	int overdraft = 500;
+	double balance;
+	std::stack<Transaction*> history;
 
 public:
 	Current(double initial) { balance = initial; }
@@ -67,13 +65,15 @@ public:
 //Savings accounts have 0.85% interest normally, 1.15% as ISAs
 class Savings : public Account, public InterestEarning
 {
-	float interestRate;
+	double balance;
+	double interestRate;
 	bool isa;
 
 public:
-	Savings(bool type, double initial) {
-		if (type == false) { isa = false; }
-		if (type == true) { isa = true; }
+	Savings(double initial, bool isIsa) {
+		isa = false; //Default setting on regular accounts
+		interestRate = 0.85; //Default rate on regular accounts
+		if (isIsa == true) { isa = true; interestRate = 1.15; }
 		balance = initial;
 	}
 
@@ -85,7 +85,7 @@ public:
 
 //- STANDARD FUNCTIONS -
 //When called, 'options' will output help for the commands the program can execute
-void options() {
+static void options() {
 	std::cout << "OPTIONS:" << std::endl;
 	std::cout << "open [type] [initial_deposit] - Open a current (1), savings (2) or ISA (3) account" << std::endl;
 	std::cout << "view [index] - View balance and recent transactions" << std::endl;
@@ -98,7 +98,7 @@ void options() {
 };
 
 //Takes a string and sees if it can be converted to a double. If it can't, returns -1. If it can, returns 0.
-int parameterValidation(std::string input) {
+static int parameterValidation(std::string input) {
 	try {
 		double output = std::stod(input);
 	} catch (std::invalid_argument) { //If the input isn't a valid number
@@ -138,29 +138,72 @@ int main()
 			token = strtok(NULL, " ");
 		}
 
+		//Parameter Validation - ensures parameters are numbers by attempting to convert them to doubles
+		for (int i = 1; i < parameters.size(); i++) {
+			if (parameterValidation(parameters[i]) == -1) {
+				std::cout << "Parameter " << i+1 << " (" << parameters[i] << ") is not a valid number." << std::endl;
+				continue; //Jumps to the next loop
+			}
+		}
+
 		// Define all commands as per the brief
 		std::string command = parameters[0];
 
-		if (command.compare("options") == 0)
+		//SHOW OPTIONS
+		if (command.compare("options") == 0) 
 		{
 			options(); //Calls the options function
 		}
-		else if (command.compare("open") == 0)
+
+		//OPEN NEW ACCOUNT
+		else if (command.compare("open") == 0) 
 		{
-			if (parameterValidation(parameters[2]) == -1) {
-				std::cout << "The input was not a valid number. Please try again." << std::endl;
-				continue; //Jumps to the next loop
+			std::string type = parameters[1]; //This parameter says the type of bank accounts (1 current, 2 standard savings, 3 isa)
+			double initial = stod(parameters[2]); //This parameter says the initial balance
+
+			//Current account
+			if (type.compare("1") == 0) {
+				openAccounts.push_back(new Current(initial)); //New current account!
+
+				std::cout << "Current account created!" << std::endl; //Output message (current)
+			} 
+
+			//Savings account
+			else if ((type.compare("2") == 0) || (type.compare("3") == 0)) { //'OR' - Will run for both standard and isa accounts
+				bool isIsa = false; //Tells the constructor if the savings account is or isn't an ISA
+
+				//ISA account
+				if (type.compare("3") == 0) {
+
+					//ISAs must have a minimum £1000 initial deposit - this checks if that's true
+					if (initial < 1000) {
+						std::cout << "The initial deposit of \x9C" << initial << " is too low. An ISA account must have a minimum"
+							<< "initial deposit of \x9C" << "1000.\nPlease enter a higher initial deposit." << std::endl;
+						continue;
+					}
+
+					isIsa = true; //User requested an ISA account - sets to true
+				} 
+
+				openAccounts.push_back(new Savings(initial, isIsa)); //New savings (normal/isa) account!
+
+				if (isIsa == false) { std::cout << "Savings account created!" << std::endl; } //Savings message (current)
+				if (isIsa == true) { std::cout << "ISA account created!" << std::endl; } //ISA message (current)
 			}
-			
-			command = parameters[1];
-			double initial = parameters[2];
-			if (command.compare("1") == 0) { openAccounts.push_back(new Current()); }
-			else if (command.compare("2") == 0) {}
-			else if (command.compare("3") == 0) {}
+
+			//If the first parameter (type) isn't one of the three valid inputs
+			else {
+				std::cout << "A valid account type was not entered. Enter \'options\' to see the types again." << std::endl;
+				continue; //Resets loop
+			}
+
+			std::cout << "Account Number: " << openAccounts.size() << std::endl;
 
 			// allow a user to open an account
 			// e.g., Account* a = new Savings(...);
 		}
+
+		//VIEW ACCOUNT(S)
 		else if (command.compare("view") == 0)
 		{
 			// display an account according to an index (starting from 1)
