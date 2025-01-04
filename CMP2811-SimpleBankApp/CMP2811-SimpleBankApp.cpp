@@ -44,7 +44,7 @@ public:
 class InterestEarning
 {
 public:
-	virtual void computeInterest() = 0;
+	virtual void computeInterest(int years) = 0;
 };
 
 //Account is an abstract class, meaning you can't create instances for it
@@ -55,9 +55,9 @@ protected:
 	std::stack<Transaction*> history;
 
 public:
-	virtual void deposit() = 0;
+	virtual void deposit(double sum) = 0;
 	virtual void toString() = 0;
-	virtual void withdraw() = 0;
+	virtual void withdraw(double sum) = 0;
 };
 
 //Current accounts don't have interest
@@ -71,23 +71,23 @@ public:
 		history.push(new Transaction("initial deposit", balance));
 	}
 
-	void deposit(double money) {
-		balance = balance + money;
-		history.push(new Transaction("deposit", money));
+	void deposit(double sum) {
+		balance = balance + sum;
+		history.push(new Transaction("deposit", sum));
 	}
 
 	void toString() {
 		std::cout << "Current account | Balance: \x9C" << printf("%g", balance) << std::endl;
 	}
 
-	void withdraw(double money) {
+	void withdraw(double sum) {
 		//Checks if the withdrawal would push the account over the overdraft
-		if ((balance - money) < overdraft) {
+		if ((balance - sum) < overdraft) {
 			std::cout << "Withdrawals and transfers must not exceed the account overdraft!" << std::endl;
 			return;
 		}
-		balance = balance - money;
-		history.push(new Transaction("withdrawal", -money));
+		balance = balance - sum;
+		history.push(new Transaction("withdrawal", -sum));
 	}
 };
 
@@ -116,9 +116,9 @@ public:
 		std::cout << "Projected balance: \x9C" << projection << std::endl;
 	}
 
-	void deposit(double money) {
-		balance = balance + money;
-		history.push(new Transaction("deposit", money));
+	void deposit(double sum) {
+		balance = balance + sum;
+		history.push(new Transaction("deposit", sum));
 	}
 
 	void toString() {
@@ -126,9 +126,9 @@ public:
 		if (isIsa == true) { std::cout << "ISA account | Balance: \x9C" << printf("%g", balance) << std::endl; }
 	}
 
-	void withdraw(double money) {
+	void withdraw(double sum) {
 		//Checks if the withdrawal would make the balance go below zero
-		if ((balance - money) < 0) {
+		if ((balance - sum) < 0) {
 			std::cout << "Withdrawals and transfers cannot take the account balance below zero!" << std::endl;
 		}
 	}
@@ -159,8 +159,29 @@ static int parameterValidation(std::string input) {
 	return 0; //No errors found
 }
 
-//Vector to store the open accounts
-std::vector <Account*> openAccounts;
+//A handler for sums that deposit and withdrawal share, making sure sums are reasonable
+static int sharedSumHandler(std::string command, double sum) {
+	if (sum > 10000) { std::cout << "Sums larger than \x9C" << "10,000 are not supported." << std::endl; }
+	else if (sum == 0) { std::cout << "You can't " << command << " nothing!" << std::endl; }
+	else if (sum < 0) { std::cout << command << "ing negative money... that makes no sense!" << std::endl; }
+	else { return 0; } // 0 is returned if there are no problems
+
+	return -1; // -1 is returned if there are problems
+}
+
+//A function to grab the account for withdraw and deposit to work with. Ideally, this is already set, but sometimes isn't
+static int recentAccountGrabber() {
+	int accountNum;
+	if (recentIndex == -1) { accountNum = (openAccounts.size() - 1); }
+	else { accountNum = recentIndex; }
+	return accountNum;
+}
+
+//VARIABLES
+std::vector <Account*> openAccounts; //Vector to store the open accounts
+int recentIndex = -1; //Int that will store the most recently viewed account, needed for the deposit and withdraw options
+//If recentIndex is -1, it means an account hasn't been specifically viewed; in this case, deposit / withdraw will default
+//  to the most recently made account - or, the last account in the openAccounts index
 
 int main()
 {
@@ -200,6 +221,14 @@ int main()
 		// Define all commands as per the brief
 		std::string command = parameters[0];
 
+		//Checks if parameters are present for deposit / withdraw / project - you can combine, since they all need one
+		if ((command.compare("deposit") == 0) || command.compare("withdraw") == 0 || command.compare("project") == 0) {
+			if (parameters.size() < 2) {
+				std::cout << "\'" << command << "\' requires a value. Please try again." << std::endl;
+				continue;
+			}
+		}
+
 		//SHOW OPTIONS
 		if (command.compare("options") == 0) 
 		{
@@ -209,6 +238,12 @@ int main()
 		//OPEN NEW ACCOUNT
 		else if (command.compare("open") == 0) 
 		{
+			//Checking if parameters are present
+			if (parameters.size() < 3) {
+				std::cout << "\'" << command << "\' requires a [type] value and an [initial_deposit] value.\nPlease try again." << std::endl;
+				continue;
+			}
+			
 			std::string type = parameters[1]; //This parameter says the type of bank accounts (1 current, 2 standard savings, 3 isa)
 			double initial = stod(parameters[2]); //This parameter says the initial balance
 
@@ -256,19 +291,26 @@ int main()
 		//VIEW ACCOUNT(S)
 		else if (command.compare("view") == 0)
 		{
-			
-
 			// display an account according to an index (starting from 1)
 			// alternatively, display all accounts if no index is provided
 		}
-		else if (command.compare("withdraw") == 0)
-		{
+
+		else if ((command.compare("withdraw") == 0) || (command.compare("deposit"))) {
+			double sum = stod(parameters[1]); //Grabs sum from vector
+
+			//Checks the sum is reasonable / possible
+			int isValid = sharedSumHandler(command, sum);
+			if (isValid == -1) { continue; }
+
+			int accountNum = recentAccountGrabber();
+
+			if (command.compare("withdraw")) { openAccounts[accountNum]->withdraw(sum); }
+			else if (command.compare("deposit")) { openAccounts[accountNum]->deposit(sum); }
+			
+
 			// allow user to withdraw funds from an account
 		}
-		else if (command.compare("deposit") == 0)
-		{
-			// allow user to deposit funds into an account
-		}
+
 		else if (command.compare("transfer") == 0)
 		{
 			// allow user to transfer funds between accounts
@@ -302,4 +344,7 @@ int main()
 //   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
 
 // References:
-// "How to use std::stod properly" [https://stackoverflow.com/questions/26008321/how-to-use-stdstod-properly]
+// "How to use std::stod properly"
+//	[https://stackoverflow.com/questions/26008321/how-to-use-stdstod-properly]
+// "Inserting a "£" sign in an output string in C++"
+//	[https://stackoverflow.com/questions/3831289/inserting-a-%C2%A3-sign-in-an-output-string-in-c]
