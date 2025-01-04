@@ -13,12 +13,39 @@ Good luck!
 ------------------------------------------------------ */
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
+#include <iomanip> //Used to format money to two decimal places in 'moneyPrinter'
 #include <sstream>
 #include <vector>
 #include <stack> //Used to store 'Transaction' objects for the 'Account' class
 #include <cmath> //Used to calculate the projected interest for the 'Savings' class
 #include <string>
 #include <ctime> //Needed to store a 'time_t' timestamp for the 'Transaction' class
+
+//Wanted a consistent output when handling money, so made a specific function for that purpose
+//Turns values representing money into strings with a pound sign attaches, and handles negatives correctly
+std::string moneyPrinter(double money) {
+	std::string toPrint;
+
+	//Negative check
+	bool isNegative = false;
+	if (money < 0) { isNegative = true; money = money * -1; toPrint = "-"; }
+
+	//Double to string with precision
+	std::ostringstream sstream;
+	sstream << std::fixed << std::setprecision(2) << money;
+	std::string moneyStr = sstream.str();
+
+	//Return
+	toPrint = toPrint + "\x9C" + moneyStr;
+	return toPrint;
+}
+
+//Simplified overload for ints, with NO NEGATIVE CHECK FUNCTIONALITY!! Mainly used for handling messages which know values in advance
+std::string moneyPrinter(int money) {
+	return "\x9C" + std::to_string(money);
+}
+
+//The rest of the functions are below the class definitions, but those two are called in the classes, so need to be above
 
 //- CLASS DEFINITIONS -
 //Transaction stores data on each deposit and withdrawal
@@ -40,7 +67,7 @@ public:
 		timestamp.erase(timestamp.find('\n', 0), 1); //ctime, for whatever reason, adds \n at the end. This removes that
 		//Credit to user 'Thantos' on cprogramming forums in 2005 for this idea
 		
-		std::cout << "-- " << desc << ": \x9C" << sum << " on " << timestamp << std::endl;
+		std::cout << "-- " << desc << ": " << moneyPrinter(sum) << " on " << timestamp << std::endl;
 	}
 };
 
@@ -81,7 +108,7 @@ public:
 	}
 
 	void toString() {
-		std::cout << "Current account | Balance: \x9C" << balance << std::endl;
+		std::cout << "Current account | Balance: " << moneyPrinter(balance) << std::endl;
 
 		for (int i = 0; i < history.size(); i++) {
 			history[i]->toString();
@@ -121,7 +148,7 @@ public:
 		double projection = (1 + (decInterest / 12)); //Interest rate is divided by the months in a year, then added to 1
 		projection = pow(projection, months); //Projection is then calculated to the power of the number of months
 		projection = balance * projection; //Finally, the balance is multiplied by the result of the interest formula
-		std::cout << "Projected balance: \x9C" << projection << std::endl;
+		std::cout << "Projected balance: " << moneyPrinter(projection) << std::endl;
 	}
 
 	void deposit(double sum) {
@@ -130,8 +157,8 @@ public:
 	}
 
 	void toString() {
-		if (isIsa == false) { std::cout << "Savings account | Balance: \x9C" << printf("%g", balance) << std::endl; }
-		if (isIsa == true) { std::cout << "ISA account | Balance: \x9C" << printf("%g", balance) << std::endl; }
+		if (isIsa == false) { std::cout << "Savings account | Balance: " << moneyPrinter(balance) << std::endl; }
+		if (isIsa == true) { std::cout << "ISA account | Balance: " << moneyPrinter(balance) << std::endl; }
 
 		for (int i = 0; i < history.size() - 1; i++) {
 			history[i]->toString();
@@ -148,7 +175,7 @@ public:
 	}
 };
 
-//VARIABLES
+//- VARIABLES -
 std::vector<Account*> openAccounts; //Vector to store the open accounts
 int recentIndex = -1; //Int that will store the most recently viewed account, needed for the deposit and withdraw options
 //If recentIndex is -1, it means an account hasn't been specifically viewed; in this case, deposit / withdraw will default
@@ -181,6 +208,7 @@ static int parameterValidation(std::string input) {
 	return 0; //No errors found
 }
 
+//Checks if an account has been made yet
 static int accountCheck() {
 	if (openAccounts.size() == 0) {
 		std::cout << "An account has not been opened yet." << std::endl;
@@ -189,6 +217,7 @@ static int accountCheck() {
 	return 0; //"There are accounts"
 }
 
+//- MAIN PROGRAM -
 int main()
 {
 	std::vector <std::string> parameters;
@@ -298,8 +327,8 @@ int main()
 
 					//ISAs must have a minimum £1000 initial deposit - this checks if that's true
 					if (initial < 1000) {
-						std::cout << "The initial deposit of \x9C" << initial << " is too low. An ISA account must have a minimum"
-							<< "initial deposit of \x9C" << "1000.\nPlease enter a higher initial deposit." << std::endl;
+						std::cout << "The initial deposit of " << moneyPrinter(initial) << " is too low. An ISA account must have a minimum"
+							<< " initial deposit of " << moneyPrinter(1000) << ".\nPlease enter a higher initial deposit." << std::endl;
 						continue; //Resets back to prompt
 					}
 
@@ -337,7 +366,7 @@ int main()
 			double sum = stod(parameters[1]); //Grabs sum from vector
 
 			//Checks the sum is reasonable / possible
-			if (sum > 10000) { std::cout << "Sums larger than \x9C" << "10,000 are not supported." << std::endl; continue; }
+			if (sum > 10000) { std::cout << "Sums larger than " << moneyPrinter(10000) << " are not supported." << std::endl; continue; }
 			else if (sum == 0) { std::cout << "You can't " << command << " nothing!" << std::endl; continue; }
 			else if (sum < 0) { std::cout << command << " negative money... that makes no sense!" << std::endl; continue; }
 
@@ -393,3 +422,5 @@ int main()
 //	[https://stackoverflow.com/questions/3831289/inserting-a-%C2%A3-sign-in-an-output-string-in-c]
 // "Stop ctime from breaking line?"
 //  [https://cboard.cprogramming.com/cplusplus-programming/64859-stop-ctime-breaking-line.html]
+// "Convert float to string with precision & number of decimal digits specified?"
+//  [https://stackoverflow.com/questions/29200635/convert-float-to-string-with-precision-number-of-decimal-digits-specified]
