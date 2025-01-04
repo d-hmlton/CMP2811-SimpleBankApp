@@ -160,7 +160,7 @@ public:
 		if (isIsa == false) { std::cout << "Savings account | Balance: " << moneyPrinter(balance) << std::endl; }
 		if (isIsa == true) { std::cout << "ISA account | Balance: " << moneyPrinter(balance) << std::endl; }
 
-		for (int i = 0; i < history.size() - 1; i++) {
+		for (int i = 0; i < history.size(); i++) {
 			history[i]->toString();
 		}
 	}
@@ -169,6 +169,7 @@ public:
 		//Checks if the withdrawal would make the balance go below zero
 		if ((balance - sum) < 0) {
 			std::cout << "Withdrawals and transfers cannot take the account balance below zero!" << std::endl;
+			return;
 		}
 		balance = balance - sum;
 		history.push_back(new Transaction("withdrawal", -sum));
@@ -189,7 +190,7 @@ bool isaExists = false; //Says is an ISA-type savings account exists already
 static void options() {
 	std::cout << "OPTIONS:" << std::endl;
 	std::cout << "open [type] [initial_deposit] - Open a current (1), savings (2) or ISA (3) account" << std::endl;
-	std::cout << "view [index] - View balance and recent transactions" << std::endl;
+	std::cout << "view [account number] - View balance and recent transactions" << std::endl;
 	std::cout << "withdraw [sum] - Withdraw funds from most recently viewed account" << std::endl;
 	std::cout << "deposit [sum] - Deposit funds into most recently viewed account" << std::endl;
 	std::cout << "transfer [source] [destination] [sum] - Transfer funds between accounts" << std::endl;
@@ -199,27 +200,34 @@ static void options() {
 };
 
 //Takes a string and sees if it can be converted to a double. If it can't, returns -1. If it can, returns 0.
-static int parameterValidation(std::string input) {
+static bool stringToDoubleValidation(std::string input) {
 	try {
 		double output = std::stod(input);
-	} catch (std::invalid_argument) { //If the input isn't a valid number
-		return -1;
+	} catch (std::invalid_argument) { //If the input isn't a valid number (to be a double)
+		return false;
 	}
-	return 0; //No errors found
+	return true; //No errors found
 }
 
 //Checks if an account has been made yet
-static int accountCheck() {
+static bool accountCheck() {
 	if (openAccounts.size() == 0) {
 		std::cout << "An account has not been opened yet." << std::endl;
-		return -1; //"There aren't any accounts"
+		return false; //"There aren't any accounts"
 	}
-	return 0; //"There are accounts"
+	return true; //"There are accounts"
+}
+
+//Returns an account number - either what's saved in most recent viewed (recentIndex) or 
+static int accountDefault() {
+	int accountNum;
+	if (recentIndex == -1) { accountNum = (openAccounts.size() - 1); } //If nothing has been saved to recentIndex
+	else { accountNum = recentIndex; } //If something has
+	return accountNum;
 }
 
 //- MAIN PROGRAM -
-int main()
-{
+int main() {
 	std::vector <std::string> parameters;
 	std::string userCommand;
 	// you may also want to store a collection of opened accounts here
@@ -246,12 +254,15 @@ int main()
 		}
 
 		//Parameter Validation - ensures parameters are numbers by attempting to convert them to doubles
+		bool exceptionFound = false;
 		for (int i = 1; i < parameters.size(); i++) {
-			if (parameterValidation(parameters[i]) == -1) {
+			if (stringToDoubleValidation(parameters[i]) == false) {
 				std::cout << "Parameter " << i+1 << " (" << parameters[i] << ") is not a valid number." << std::endl;
-				continue; //Resets back to prompt
+				exceptionFound = true;
+				break;
 			}
 		}
+		if (exceptionFound == true) { std::cout << "Please try again." << std::endl; continue; } //Resets back to prompt
 
 		// Define all commands as per the brief
 		std::string command = parameters[0];
@@ -261,7 +272,7 @@ int main()
 		if ((command.compare("deposit") == 0) || command.compare("withdraw") == 0 || command.compare("project") == 0) {
 			//Ensures accounts exist to run these commands
 			int ifAccounts = accountCheck();
-			if (ifAccounts == -1) { continue; } //Resets back to prompt
+			if (ifAccounts == false) { continue; } //Resets back to prompt
 			
 			if (parameters.size() < 2) {
 				if (command.compare("project") != 0) { std::cout << "\'" << command << "\' requires a [sum]. "; }
@@ -274,7 +285,7 @@ int main()
 		if ((command.compare("view") == 0) || (command.compare("transfer") == 0)) {
 			//Ensures accounts exist to run these commands
 			int ifAccounts = accountCheck();
-			if (ifAccounts == -1) { continue; } //Resets back to prompt
+			if (ifAccounts == false) { continue; } //Resets back to prompt
 
 			if (command.compare("transfer") == 0) {
 				if (parameters.size() < 4) {
@@ -357,8 +368,29 @@ int main()
 		//VIEW ACCOUNT(S)
 		else if (command.compare("view") == 0)
 		{
-			// display an account according to an index (starting from 1)
-			// alternatively, display all accounts if no index is provided
+			int accountNum = -1; //The account that will be viewed - when the variable is attached to a value
+
+			if (parameters.size() > 1) {
+				bool isValid = stringToDoubleValidation(parameters[1]);
+				if (isValid == false) { 
+					std::cout << "The [account number] value provided isn't a number. Please try again." << std::endl;
+					continue; //Resets back to prompt
+				}
+				accountNum = stoi(parameters[1]) - 1; //Index is one digit lower than account number
+				
+				//Checks if the account number given is out of range of openAccounts, or a negative number
+				if (openAccounts.size() < accountNum + 1 || accountNum < 0) {
+					std::cout << "The [account number] provided is not assigned to an open account. Please try again." << std::endl;
+					continue; //Resets back to prompt
+				}
+
+				openAccounts[accountNum]->toString();
+			}
+			else { 
+				for (int i = 0; i < openAccounts.size(); i++) {
+					openAccounts[i]->toString();
+				}
+			}
 		}
 
 		//WITHDRAW FROM / DEPOSIT TO ACCOUNTS
@@ -371,9 +403,7 @@ int main()
 			else if (sum < 0) { std::cout << command << " negative money... that makes no sense!" << std::endl; continue; }
 
 			//Grabs the account for withdraw and deposit to work with. Ideally, this is already set, but sometimes isn't
-			int accountNum;
-			if (recentIndex == -1) { accountNum = (openAccounts.size() - 1); }
-			else { accountNum = recentIndex; }
+			int accountNum = accountDefault();
 
 			//Withdraws or deposits
 			if (command.compare("withdraw") == 0) { openAccounts[accountNum]->withdraw(sum); }
