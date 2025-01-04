@@ -25,18 +25,22 @@ Good luck!
 class Transaction
 {
 	std::string desc; //The nature of the transaction
-	time_t timestamp; //The date & time
-	double value; //The (monetary) value
+	time_t pureTime; //The date & time
+	double sum; //The (monetary) value
 
 public:
 	Transaction(std::string x, double y) {
 		desc = x;
-		value = y;
-		timestamp = time(nullptr);
+		sum = y;
+		pureTime = time(nullptr); //Grabs the current time
 	}
 
 	void toString() {
-		std::cout << "-- " << desc << ": \x9C" << printf("%g", value) << " on " << timestamp << std::endl;
+		std::string timestamp = std::ctime(&pureTime); //Formats the time as a string to be output
+		timestamp.erase(timestamp.find('\n', 0), 1); //ctime, for whatever reason, adds \n at the end. This removes that
+		//Credit to user 'Thantos' on cprogramming forums in 2005 for this idea
+		
+		std::cout << "-- " << desc << ": \x9C" << sum << " on " << timestamp << std::endl;
 	}
 };
 
@@ -52,7 +56,7 @@ class Account
 {
 protected:
 	double balance;
-	std::stack<Transaction*> history;
+	std::vector<Transaction*> history;
 
 public:
 	virtual void deposit(double sum) = 0;
@@ -68,16 +72,20 @@ class Current : public Account
 public:
 	Current(double x) {
 		balance = x;
-		history.push(new Transaction("initial deposit", balance));
+		history.push_back(new Transaction("initial deposit", balance));
 	}
 
 	void deposit(double sum) {
 		balance = balance + sum;
-		history.push(new Transaction("deposit", sum));
+		history.push_back(new Transaction("deposit", sum));
 	}
 
 	void toString() {
-		std::cout << "Current account | Balance: \x9C" << printf("%g", balance) << std::endl;
+		std::cout << "Current account | Balance: \x9C" << balance << std::endl;
+
+		for (int i = 0; i < history.size(); i++) {
+			history[i]->toString();
+		}
 	}
 
 	void withdraw(double sum) {
@@ -87,7 +95,7 @@ public:
 			return;
 		}
 		balance = balance - sum;
-		history.push(new Transaction("withdrawal", -sum));
+		history.push_back(new Transaction("withdrawal", -sum));
 	}
 };
 
@@ -103,7 +111,7 @@ public:
 		isIsa = y;
 		interestRate = 0.85; //Default rate on regular accounts
 		if (isIsa == true) { interestRate = 1.15; } //ISA rate
-		history.push(new Transaction("initial deposit", balance));
+		history.push_back(new Transaction("initial deposit", balance));
 	}
 
 	void computeInterest(int years) {
@@ -118,12 +126,16 @@ public:
 
 	void deposit(double sum) {
 		balance = balance + sum;
-		history.push(new Transaction("deposit", sum));
+		history.push_back(new Transaction("deposit", sum));
 	}
 
 	void toString() {
 		if (isIsa == false) { std::cout << "Savings account | Balance: \x9C" << printf("%g", balance) << std::endl; }
 		if (isIsa == true) { std::cout << "ISA account | Balance: \x9C" << printf("%g", balance) << std::endl; }
+
+		for (int i = 0; i < history.size() - 1; i++) {
+			history[i]->toString();
+		}
 	}
 
 	void withdraw(double sum) {
@@ -131,8 +143,19 @@ public:
 		if ((balance - sum) < 0) {
 			std::cout << "Withdrawals and transfers cannot take the account balance below zero!" << std::endl;
 		}
+		balance = balance - sum;
+		history.push_back(new Transaction("withdrawal", -sum));
 	}
 };
+
+//VARIABLES
+std::vector<Account*> openAccounts; //Vector to store the open accounts
+int recentIndex = -1; //Int that will store the most recently viewed account, needed for the deposit and withdraw options
+//If recentIndex is -1, it means an account hasn't been specifically viewed; in this case, deposit / withdraw will default
+//  to the most recently made account - or, the last account in the openAccounts index
+const char* timestampFormat = "%Y-%m-%d %H:%M:%S"; //How to format timestamps (credit to "GeeksforGeeks website for this)
+bool currentExists = false; //Says if a current account exists already
+bool isaExists = false; //Says is an ISA-type savings account exists already
 
 //- STANDARD FUNCTIONS -
 //When called, 'options' will output help for the commands the program can execute
@@ -155,33 +178,16 @@ static int parameterValidation(std::string input) {
 	} catch (std::invalid_argument) { //If the input isn't a valid number
 		return -1;
 	}
-
 	return 0; //No errors found
 }
 
-//A handler for sums that deposit and withdrawal share, making sure sums are reasonable
-static int sharedSumHandler(std::string command, double sum) {
-	if (sum > 10000) { std::cout << "Sums larger than \x9C" << "10,000 are not supported." << std::endl; }
-	else if (sum == 0) { std::cout << "You can't " << command << " nothing!" << std::endl; }
-	else if (sum < 0) { std::cout << command << "ing negative money... that makes no sense!" << std::endl; }
-	else { return 0; } // 0 is returned if there are no problems
-
-	return -1; // -1 is returned if there are problems
+static int accountCheck() {
+	if (openAccounts.size() == 0) {
+		std::cout << "An account has not been opened yet." << std::endl;
+		return -1; //"There aren't any accounts"
+	}
+	return 0; //"There are accounts"
 }
-
-//A function to grab the account for withdraw and deposit to work with. Ideally, this is already set, but sometimes isn't
-static int recentAccountGrabber() {
-	int accountNum;
-	if (recentIndex == -1) { accountNum = (openAccounts.size() - 1); }
-	else { accountNum = recentIndex; }
-	return accountNum;
-}
-
-//VARIABLES
-std::vector <Account*> openAccounts; //Vector to store the open accounts
-int recentIndex = -1; //Int that will store the most recently viewed account, needed for the deposit and withdraw options
-//If recentIndex is -1, it means an account hasn't been specifically viewed; in this case, deposit / withdraw will default
-//  to the most recently made account - or, the last account in the openAccounts index
 
 int main()
 {
@@ -214,18 +220,38 @@ int main()
 		for (int i = 1; i < parameters.size(); i++) {
 			if (parameterValidation(parameters[i]) == -1) {
 				std::cout << "Parameter " << i+1 << " (" << parameters[i] << ") is not a valid number." << std::endl;
-				continue; //Jumps to the next loop
+				continue; //Resets back to prompt
 			}
 		}
 
 		// Define all commands as per the brief
 		std::string command = parameters[0];
 
-		//Checks if parameters are present for deposit / withdraw / project - you can combine, since they all need one
+		//PRE-EMPTIVE CHECKS
+		//Checks if parameters are present, and an account exists, for deposit / withdraw / project. You can combine, all need one param
 		if ((command.compare("deposit") == 0) || command.compare("withdraw") == 0 || command.compare("project") == 0) {
+			//Ensures accounts exist to run these commands
+			int ifAccounts = accountCheck();
+			if (ifAccounts == -1) { continue; } //Resets back to prompt
+			
 			if (parameters.size() < 2) {
-				std::cout << "\'" << command << "\' requires a value. Please try again." << std::endl;
-				continue;
+				if (command.compare("project") != 0) { std::cout << "\'" << command << "\' requires a [sum]. "; }
+				else if (command.compare("project") == 0) { std::cout << "\'project\' requires [years]. "; }
+				std::cout << "Please try again." << std::endl;
+				continue; //Resets back to prompt
+			}
+		}
+		//Does the same thing for view / transfer
+		if ((command.compare("view") == 0) || (command.compare("transfer") == 0)) {
+			//Ensures accounts exist to run these commands
+			int ifAccounts = accountCheck();
+			if (ifAccounts == -1) { continue; } //Resets back to prompt
+
+			if (command.compare("transfer") == 0) {
+				if (parameters.size() < 4) {
+					std::cout << "\'transfer\' requires a [source], a [destination], and a [sum]. Please try again." << std::endl;
+					continue; //Resets back to prompt
+				}
 			}
 		}
 
@@ -240,8 +266,8 @@ int main()
 		{
 			//Checking if parameters are present
 			if (parameters.size() < 3) {
-				std::cout << "\'" << command << "\' requires a [type] value and an [initial_deposit] value.\nPlease try again." << std::endl;
-				continue;
+				std::cout << "\'" << command << "\' requires a [type] and an [initial_deposit]. Please try again." << std::endl;
+				continue; //Resets back to prompt
 			}
 			
 			std::string type = parameters[1]; //This parameter says the type of bank accounts (1 current, 2 standard savings, 3 isa)
@@ -249,8 +275,14 @@ int main()
 
 			//Current account
 			if (type.compare("1") == 0) {
+				if (currentExists == true) {
+					std::cout << "You can only have one current account. Please select a different account type." << std::endl;
+					continue; //Resets back to prompt
+				}
+
 				openAccounts.push_back(new Current(initial)); //New current account!
 				std::cout << "Current account created!" << std::endl; //Output message (current)
+				currentExists = true; //No new current accounts can be created
 			} 
 
 			//Savings account
@@ -259,15 +291,20 @@ int main()
 
 				//ISA account
 				if (type.compare("3") == 0) {
+					if (isaExists == true) {
+						std::cout << "You can only have one ISA account. Please select a different account type." << std::endl;
+						continue; //Resets back to prompt
+					}
 
 					//ISAs must have a minimum £1000 initial deposit - this checks if that's true
 					if (initial < 1000) {
 						std::cout << "The initial deposit of \x9C" << initial << " is too low. An ISA account must have a minimum"
 							<< "initial deposit of \x9C" << "1000.\nPlease enter a higher initial deposit." << std::endl;
-						continue;
+						continue; //Resets back to prompt
 					}
 
 					isIsa = true; //User requested an ISA account - sets to true
+					isaExists = true; //No new ISA accounts can be created
 				} 
 
 				//Runs for savings + ISA
@@ -279,7 +316,7 @@ int main()
 			//If the first parameter (type) isn't one of the three valid inputs
 			else {
 				std::cout << "A valid account type was not entered. Enter \'options\' to see the types again." << std::endl;
-				continue; //Resets loop
+				continue; //Resets back to prompt
 			}
 
 			std::cout << "Account Number: " << openAccounts.size() << std::endl;
@@ -295,20 +332,26 @@ int main()
 			// alternatively, display all accounts if no index is provided
 		}
 
-		else if ((command.compare("withdraw") == 0) || (command.compare("deposit"))) {
+		//WITHDRAW FROM / DEPOSIT TO ACCOUNTS
+		else if ((command.compare("withdraw") == 0) || (command.compare("deposit") == 0)) {
 			double sum = stod(parameters[1]); //Grabs sum from vector
 
 			//Checks the sum is reasonable / possible
-			int isValid = sharedSumHandler(command, sum);
-			if (isValid == -1) { continue; }
+			if (sum > 10000) { std::cout << "Sums larger than \x9C" << "10,000 are not supported." << std::endl; continue; }
+			else if (sum == 0) { std::cout << "You can't " << command << " nothing!" << std::endl; continue; }
+			else if (sum < 0) { std::cout << command << " negative money... that makes no sense!" << std::endl; continue; }
 
-			int accountNum = recentAccountGrabber();
+			//Grabs the account for withdraw and deposit to work with. Ideally, this is already set, but sometimes isn't
+			int accountNum;
+			if (recentIndex == -1) { accountNum = (openAccounts.size() - 1); }
+			else { accountNum = recentIndex; }
 
-			if (command.compare("withdraw")) { openAccounts[accountNum]->withdraw(sum); }
-			else if (command.compare("deposit")) { openAccounts[accountNum]->deposit(sum); }
+			//Withdraws or deposits
+			if (command.compare("withdraw") == 0) { openAccounts[accountNum]->withdraw(sum); }
+			else if (command.compare("deposit") == 0) { openAccounts[accountNum]->deposit(sum); }
 			
-
-			// allow user to withdraw funds from an account
+			//Printing account details
+			openAccounts[accountNum]->toString();
 		}
 
 		else if (command.compare("transfer") == 0)
@@ -348,3 +391,5 @@ int main()
 //	[https://stackoverflow.com/questions/26008321/how-to-use-stdstod-properly]
 // "Inserting a "£" sign in an output string in C++"
 //	[https://stackoverflow.com/questions/3831289/inserting-a-%C2%A3-sign-in-an-output-string-in-c]
+// "Stop ctime from breaking line?"
+//  [https://cboard.cprogramming.com/cplusplus-programming/64859-stop-ctime-breaking-line.html]
