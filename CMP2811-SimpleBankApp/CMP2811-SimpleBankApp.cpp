@@ -86,9 +86,10 @@ protected:
 	std::vector<Transaction*> history;
 
 public:
-	virtual void deposit(double sum) = 0;
+	virtual void computeInterest(int years) = 0;
+	virtual void deposit(std::string desc, double sum) = 0;
 	virtual void toString() = 0;
-	virtual void withdraw(double sum) = 0;
+	virtual bool withdraw(std::string desc, double sum) = 0;
 };
 
 //Current accounts don't have interest
@@ -102,9 +103,9 @@ public:
 		history.push_back(new Transaction("initial deposit", balance));
 	}
 
-	void deposit(double sum) {
+	void deposit(std::string desc, double sum) {
 		balance = balance + sum;
-		history.push_back(new Transaction("deposit", sum));
+		history.push_back(new Transaction(desc, sum));
 	}
 
 	void toString() {
@@ -115,15 +116,18 @@ public:
 		}
 	}
 
-	void withdraw(double sum) {
+	bool withdraw(std::string desc, double sum) {
 		//Checks if the withdrawal would push the account over the overdraft
 		if ((balance - sum) < overdraft) {
 			std::cout << "Withdrawals and transfers must not exceed the account overdraft!" << std::endl;
-			return;
+			return false;
 		}
 		balance = balance - sum;
-		history.push_back(new Transaction("withdrawal", -sum));
+		history.push_back(new Transaction(desc, -sum));
+		return true;
 	}
+
+	void computeInterest(int years) {}
 };
 
 //Savings accounts have 0.85% interest normally, 1.15% as ISAs
@@ -151,9 +155,9 @@ public:
 		std::cout << "Projected balance: " << moneyPrinter(projection) << std::endl;
 	}
 
-	void deposit(double sum) {
+	void deposit(std::string desc, double sum) {
 		balance = balance + sum;
-		history.push_back(new Transaction("deposit", sum));
+		history.push_back(new Transaction(desc, sum));
 	}
 
 	void toString() {
@@ -165,14 +169,15 @@ public:
 		}
 	}
 
-	void withdraw(double sum) {
+	bool withdraw(std::string desc, double sum) {
 		//Checks if the withdrawal would make the balance go below zero
 		if ((balance - sum) < 0) {
 			std::cout << "Withdrawals and transfers cannot take the account balance below zero!" << std::endl;
-			return;
+			return false;
 		}
 		balance = balance - sum;
-		history.push_back(new Transaction("withdrawal", -sum));
+		history.push_back(new Transaction(desc, -sum));
+		return true;
 	}
 };
 
@@ -182,8 +187,8 @@ int recentIndex = -1; //Int that will store the most recently viewed account, ne
 //If recentIndex is -1, it means an account hasn't been specifically viewed; in this case, deposit / withdraw will default
 //  to the most recently made account - or, the last account in the openAccounts index
 const char* timestampFormat = "%Y-%m-%d %H:%M:%S"; //How to format timestamps (credit to "GeeksforGeeks website for this)
-bool currentExists = false; //Says if a current account exists already
-bool isaExists = false; //Says is an ISA-type savings account exists already
+int currentAccountNum = -1; //-1 if not current exists. If not, one exists, and this is the location for it
+int isaAccountNum = -1; //Same as above but for ISAs
 
 //- STANDARD FUNCTIONS -
 //When called, 'options' will output help for the commands the program can execute
@@ -208,6 +213,29 @@ static bool stringToDoubleValidation(std::string input) {
 	}
 	return true; //No errors found
 }
+
+//Ensures an input for an account number is in 'openAccounts' vector range
+static int accountNumberValidation(std::string input) {
+	int accountNum = stoi(input) - 1; //Index is one digit lower than account number
+
+	//Checks if the account number given is out of range of openAccounts, or a negative number
+	if (openAccounts.size() < accountNum + 1 || accountNum < 0) {
+		std::cout << "The [account number] provided is not assigned to an open account. Please try again." << std::endl;
+		return -1; //Resets back to prompt
+	}
+
+	return accountNum;
+}
+
+//Ensures a sum is within reason
+static bool sumValidation(double sum, std::string command) {
+	if (sum > 10000) { std::cout << "Sums larger than " << moneyPrinter(10000) << " are not supported." << std::endl; }
+	else if (sum == 0) { std::cout << "You can't \'" << command << "\' nothing!" << std::endl; }
+	else if (sum < 0) { std::cout << "\'" << command << "\' negative money... that's against the rules!" << std::endl; }
+	else { return true; } //No issues found
+
+	return false; //Issue found
+ }
 
 //Checks if an account has been made yet
 static bool accountCheck() {
@@ -315,14 +343,14 @@ int main() {
 
 			//Current account
 			if (type.compare("1") == 0) {
-				if (currentExists == true) {
+				if (currentAccountNum != -1) {
 					std::cout << "You can only have one current account. Please select a different account type." << std::endl;
 					continue; //Resets back to prompt
 				}
 
 				openAccounts.push_back(new Current(initial)); //New current account!
 				std::cout << "Current account created!" << std::endl; //Output message (current)
-				currentExists = true; //No new current accounts can be created
+				currentAccountNum = openAccounts.size() - 1; //No new current accounts can be created
 			} 
 
 			//Savings account
@@ -331,7 +359,7 @@ int main() {
 
 				//ISA account
 				if (type.compare("3") == 0) {
-					if (isaExists == true) {
+					if (isaAccountNum != -1) {
 						std::cout << "You can only have one ISA account. Please select a different account type." << std::endl;
 						continue; //Resets back to prompt
 					}
@@ -344,7 +372,7 @@ int main() {
 					}
 
 					isIsa = true; //User requested an ISA account - sets to true
-					isaExists = true; //No new ISA accounts can be created
+					isaAccountNum = openAccounts.size(); //No new ISA accounts can be created
 				} 
 
 				//Runs for savings + ISA
@@ -371,20 +399,9 @@ int main() {
 			int accountNum = -1; //The account that will be viewed - when the variable is attached to a value
 
 			if (parameters.size() > 1) {
-				bool isValid = stringToDoubleValidation(parameters[1]);
-				if (isValid == false) { 
-					std::cout << "The [account number] value provided isn't a number. Please try again." << std::endl;
-					continue; //Resets back to prompt
-				}
-				accountNum = stoi(parameters[1]) - 1; //Index is one digit lower than account number
-				
-				//Checks if the account number given is out of range of openAccounts, or a negative number
-				if (openAccounts.size() < accountNum + 1 || accountNum < 0) {
-					std::cout << "The [account number] provided is not assigned to an open account. Please try again." << std::endl;
-					continue; //Resets back to prompt
-				}
-
-				openAccounts[accountNum]->toString();
+				accountNum = accountNumberValidation(parameters[1]); //Hands input over to validation function
+				if (accountNum == -1) { continue; } //If validation function says the input is invalid, resets back to prompt
+				openAccounts[accountNum]->toString(); //Otherwise, views account details
 			}
 			else { 
 				for (int i = 0; i < openAccounts.size(); i++) {
@@ -395,31 +412,61 @@ int main() {
 
 		//WITHDRAW FROM / DEPOSIT TO ACCOUNTS
 		else if ((command.compare("withdraw") == 0) || (command.compare("deposit") == 0)) {
-			double sum = stod(parameters[1]); //Grabs sum from vector
-
 			//Checks the sum is reasonable / possible
-			if (sum > 10000) { std::cout << "Sums larger than " << moneyPrinter(10000) << " are not supported." << std::endl; continue; }
-			else if (sum == 0) { std::cout << "You can't " << command << " nothing!" << std::endl; continue; }
-			else if (sum < 0) { std::cout << command << " negative money... that makes no sense!" << std::endl; continue; }
+			double sum = stod(parameters[1]); //Grabs sum from vector
+			bool isValid = sumValidation(sum, command);
+			if (isValid == false) { continue; }
 
 			//Grabs the account for withdraw and deposit to work with. Ideally, this is already set, but sometimes isn't
 			int accountNum = accountDefault();
 
 			//Withdraws or deposits
-			if (command.compare("withdraw") == 0) { openAccounts[accountNum]->withdraw(sum); }
-			else if (command.compare("deposit") == 0) { openAccounts[accountNum]->deposit(sum); }
+			if (command.compare("withdraw") == 0) {
+				bool withdrawFine = openAccounts[accountNum]->withdraw("withdrawal", sum);
+				if (withdrawFine == false) { continue; }
+			}
+			else if (command.compare("deposit") == 0) { openAccounts[accountNum]->deposit("deposit", sum); }
 			
 			//Printing account details
 			openAccounts[accountNum]->toString();
 		}
 
+		//TRANSFER BETWEEN ACCOUNTS
 		else if (command.compare("transfer") == 0)
 		{
-			// allow user to transfer funds between accounts
-			// i.e., a withdrawal followed by a deposit!
+			//Checks there are a requisite number of accounts open
+			if (openAccounts.size() == 1) {
+				std::cout << "There must be at least two open accounts to perform a transfer. Please open a second account." << std::endl;
+				continue;
+			}
+
+			//Checks the account numbers are valid
+			int source = accountNumberValidation(parameters[1]); //Hands the first account number to validation
+			if (source == -1) { continue; } //If invalid, resets back to prompts
+			int destination = accountNumberValidation(parameters[2]); //Hands second
+			if (destination == -1) { continue; } //Same as above
+
+			//Checks whether the source and destination are the same
+			if (source == destination) { std::cout << "[source] and [destination] can't be the same. Please try again." << std::endl; continue; }
+
+			//Checks the sum is reasonable / possible
+			double sum = stod(parameters[3]); //Grabs sum from vector
+			bool isValid = sumValidation(sum, command); //Hands it to validation
+			if (isValid == false) { continue; } //Same as above
+
+			//Begins transfer process!
+			std::cout << "Starting transfer..." << std::endl;
+			bool withdrawFine = openAccounts[source]->withdraw("transfer to account " + std::to_string(destination), sum);
+			//If a problem occured withdrawing, aborts the transfer
+			if (withdrawFine == false) { std::cout << "Transfer failed!" << std::endl; continue; }
+			openAccounts[destination]->deposit("transfer from account " + std::to_string(source), sum);
+			std::cout << "Transfer successful!" << std::endl;
 		}
+
+		//PROJECT INTEREST ON ACCOUNTS
 		else if (command.compare("project") == 0)
 		{
+			
 			// compute compound interest t years into the future
 		}
 		//else if (command.compare("search"))
