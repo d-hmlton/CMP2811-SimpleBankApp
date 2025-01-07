@@ -23,7 +23,7 @@ Good luck!
 
 //Wanted a consistent output when handling money, so made a specific function for that purpose
 //Turns values representing money into strings with a pound sign attaches, and handles negatives correctly
-std::string moneyPrinter(double money) {
+static std::string moneyPrinter(double money) {
 	std::string toPrint;
 
 	//Negative check
@@ -41,7 +41,7 @@ std::string moneyPrinter(double money) {
 }
 
 //Simplified overload for ints, with NO NEGATIVE CHECK FUNCTIONALITY!! Mainly used for handling messages which know values in advance
-std::string moneyPrinter(int money) {
+static std::string moneyPrinter(int money) {
 	return "\x9C" + std::to_string(money);
 }
 
@@ -69,6 +69,10 @@ public:
 		
 		std::cout << "-- " << desc << ": " << moneyPrinter(sum) << " on " << timestamp << std::endl;
 	}
+
+	double getSum() {
+		return sum;
+	}
 };
 
 //InterestEarning is a sub-type of abstract class called an interface - pure virt funcs ONLY
@@ -88,6 +92,7 @@ protected:
 public:
 	virtual void computeInterest(int years) = 0;
 	virtual void deposit(std::string desc, double sum) = 0;
+	virtual void historySearch(double value) = 0;
 	virtual void toString() = 0;
 	virtual bool withdraw(std::string desc, double sum) = 0;
 };
@@ -106,6 +111,20 @@ public:
 	void deposit(std::string desc, double sum) {
 		balance = balance + sum;
 		history.push_back(new Transaction(desc, sum));
+	}
+
+	void historySearch(double value) {
+		int sumStore;
+		float hundredthOfValue = value / 100;
+		
+		//Loops through the transactions
+		for (int i = 0; i < history.size(); i++) {
+			sumStore = history[i]->getSum();
+			//If the transaction is within 1% of the provided value's value
+			if ((sumStore < (value + hundredthOfValue)) && (sumStore > (value - hundredthOfValue))) {
+				history[i]->toString();
+			}
+		}
 	}
 
 	void toString() {
@@ -160,6 +179,20 @@ public:
 		history.push_back(new Transaction(desc, sum));
 	}
 
+	void historySearch(double value) {
+		int sumStore;
+		float hundredthOfValue = value / 100;
+
+		//Loops through the transactions
+		for (int i = 0; i < history.size(); i++) {
+			sumStore = history[i]->getSum();
+			//If the transaction is within 1% of the provided value's value
+			if ((sumStore < (value + hundredthOfValue)) && (sumStore > (value - hundredthOfValue))) {
+				history[i]->toString();
+			}
+		}
+	}
+
 	void toString() {
 		if (isIsa == false) { std::cout << "Savings account | Balance: " << moneyPrinter(balance) << std::endl; }
 		if (isIsa == true) { std::cout << "ISA account | Balance: " << moneyPrinter(balance) << std::endl; }
@@ -200,6 +233,7 @@ static void options() {
 	std::cout << "deposit [sum] - Deposit funds into most recently viewed account" << std::endl;
 	std::cout << "transfer [source] [destination] [sum] - Transfer funds between accounts" << std::endl;
 	std::cout << "project [years] - Project balance forward in time for most recently viewed account" << std::endl;
+	std::cout << "search [account number] [value] - Provides transaction(s) closest to the value provided" << std::endl;
 	std::cout << "exit - Close this application" << std::endl;
 	std::cout << "options - View these options again" << std::endl;
 };
@@ -229,7 +263,7 @@ static int accountNumberValidation(std::string input) {
 
 //Ensures a sum is within reason
 static bool sumValidation(double sum, std::string command) {
-	if (sum > 10000) { std::cout << "Sums larger than " << moneyPrinter(10000) << " are not supported." << std::endl; }
+	if (sum > 100000) { std::cout << "Sums larger than " << moneyPrinter(100000) << " are not supported." << std::endl; }
 	else if (sum == 0) { std::cout << "You can't \'" << command << "\' nothing!" << std::endl; }
 	else if (sum < 0) { std::cout << "\'" << command << "\' negative money... that's against the rules!" << std::endl; }
 	else { return true; } //No issues found
@@ -309,8 +343,8 @@ int main() {
 				continue; //Resets back to prompt
 			}
 		}
-		//Does the same thing for view / transfer
-		if ((command.compare("view") == 0) || (command.compare("transfer") == 0)) {
+		//Does the same thing for view / transfer / search
+		if ((command.compare("view") == 0) || (command.compare("transfer") == 0) || (command.compare("search") == 0)) {
 			//Ensures accounts exist to run these commands
 			int ifAccounts = accountCheck();
 			if (ifAccounts == false) { continue; } //Resets back to prompt
@@ -319,6 +353,12 @@ int main() {
 				if (parameters.size() < 4) {
 					std::cout << "\'transfer\' requires a [source], a [destination], and a [sum]. Please try again." << std::endl;
 					continue; //Resets back to prompt
+				}
+			}
+			if (command.compare("search") == 0) {
+				if (parameters.size() < 3) {
+					std::cout << "\'search\' requires an [account number], and a [value]. Please try again." << std::endl;
+					continue;
 				}
 			}
 		}
@@ -340,6 +380,10 @@ int main() {
 			
 			std::string type = parameters[1]; //This parameter says the type of bank accounts (1 current, 2 standard savings, 3 isa)
 			double initial = stod(parameters[2]); //This parameter says the initial balance
+
+			//Checking if initial deposit is valid
+			bool isValid = sumValidation(initial, "initial deposit");
+			if (isValid == false) { continue; }
 
 			//Current account
 			if (type.compare("1") == 0) {
@@ -396,13 +440,13 @@ int main() {
 		//VIEW ACCOUNT(S)
 		else if (command.compare("view") == 0)
 		{
-			int accountNum = -1; //The account that will be viewed - when the variable is attached to a value
-
+			//If an account number is provided
 			if (parameters.size() > 1) {
-				accountNum = accountNumberValidation(parameters[1]); //Hands input over to validation function
+				int accountNum = accountNumberValidation(parameters[1]); //Hands input over to validation function
 				if (accountNum == -1) { continue; } //If validation function says the input is invalid, resets back to prompt
 				openAccounts[accountNum]->toString(); //Otherwise, views account details
 			}
+			//If no account number is provided
 			else { 
 				for (int i = 0; i < openAccounts.size(); i++) {
 					openAccounts[i]->toString();
@@ -466,14 +510,40 @@ int main() {
 		//PROJECT INTEREST ON ACCOUNTS
 		else if (command.compare("project") == 0)
 		{
+			int years = stoi(parameters[1]);
+
+			//Fetches the most recently viewed account
+			int accountNum = accountDefault();
 			
+			//Checks if the account is the current account, which has no interest
+			if (accountNum == currentAccountNum) {
+				std::cout << "A current account does not accrue interest, so the balance will never change." << std::endl;
+				std::cout << "Please view a savings account to project interest on." << std::endl; continue;
+			}
+
+			//Calls the compute interest method
+			openAccounts[accountNum]->computeInterest(years);
+
 			// compute compound interest t years into the future
 		}
-		//else if (command.compare("search"))
-		//{
+
+		else if (command.compare("search") == 0)
+		{
+			//Ensures account number is valid
+			int account = accountNumberValidation(parameters[1]);
+			if (account == -1) { continue; }
+
+			//Ensures value is valid
+			double value = stod(parameters[2]);
+			bool isValid = sumValidation(value, "transfer");
+			if (isValid == false) { continue; }
+
+			//Calls the search method
+			openAccounts[account]->historySearch(value);
+
 		//	allow users to search their account history for a transaction
 		//  (this is a stretch task)
-		//}
+		}
 
 	}
 
