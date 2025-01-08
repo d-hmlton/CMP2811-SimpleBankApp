@@ -47,7 +47,8 @@ static std::string moneyPrinter(int money) {
 
 //The rest of the functions are below the class definitions, but those two are called in the classes, so need to be above
 
-//- CLASS DEFINITIONS -
+
+//- CLASSES -
 //Transaction stores data on each deposit and withdrawal
 class Transaction
 {
@@ -119,11 +120,15 @@ public:
 		
 		//Loops through the transactions
 		for (int i = 0; i < history.size(); i++) {
+			int transactionsFound = 0;
 			sumStore = history[i]->getSum();
 			//If the transaction is within 1% of the provided value's value
 			if ((sumStore < (value + hundredthOfValue)) && (sumStore > (value - hundredthOfValue))) {
 				history[i]->toString();
+				transactionsFound = transactionsFound + 1;
 			}
+			std::cout << transactionsFound << " transaction(s) found." << std::endl;
+			if (transactionsFound == 0) { std::cout << "You can view all transactions on a specific account with \'view\'." << std::endl; }
 		}
 	}
 
@@ -214,6 +219,8 @@ public:
 	}
 };
 
+
+
 //- VARIABLES -
 std::vector<Account*> openAccounts; //Vector to store the open accounts
 int recentIndex = -1; //Int that will store the most recently viewed account, needed for the deposit and withdraw options
@@ -222,6 +229,7 @@ int recentIndex = -1; //Int that will store the most recently viewed account, ne
 const char* timestampFormat = "%Y-%m-%d %H:%M:%S"; //How to format timestamps (credit to "GeeksforGeeks website for this)
 int currentAccountNum = -1; //-1 if not current exists. If not, one exists, and this is the location for it
 int isaAccountNum = -1; //Same as above but for ISAs
+
 
 //- STANDARD FUNCTIONS -
 //When called, 'options' will output help for the commands the program can execute
@@ -382,8 +390,11 @@ int main() {
 			double initial = stod(parameters[2]); //This parameter says the initial balance
 
 			//Checking if initial deposit is valid
-			bool isValid = sumValidation(initial, "initial deposit");
-			if (isValid == false) { continue; }
+			if (initial > 100000) {
+				std::cout << "Initial deposits larger than " << moneyPrinter(100000) << " are not supported. Please try again." << std::endl;
+				continue;
+			}
+			if (initial < 0) { std::cout << "An initial deposit can't be negative! Please try again." << std::endl; continue; }
 
 			//Current account
 			if (type.compare("1") == 0) {
@@ -445,6 +456,7 @@ int main() {
 				int accountNum = accountNumberValidation(parameters[1]); //Hands input over to validation function
 				if (accountNum == -1) { continue; } //If validation function says the input is invalid, resets back to prompt
 				openAccounts[accountNum]->toString(); //Otherwise, views account details
+				recentIndex = accountNum; //Saves the viewed account as the most recently viewed account
 			}
 			//If no account number is provided
 			else { 
@@ -500,11 +512,13 @@ int main() {
 
 			//Begins transfer process!
 			std::cout << "Starting transfer..." << std::endl;
-			bool withdrawFine = openAccounts[source]->withdraw("transfer to account " + std::to_string(destination), sum);
+			bool withdrawFine = openAccounts[source]->withdraw("transfer to account " + std::to_string(destination + 1), sum);
 			//If a problem occured withdrawing, aborts the transfer
 			if (withdrawFine == false) { std::cout << "Transfer failed!" << std::endl; continue; }
-			openAccounts[destination]->deposit("transfer from account " + std::to_string(source), sum);
+			openAccounts[destination]->deposit("transfer from account " + std::to_string(source + 1), sum);
 			std::cout << "Transfer successful!" << std::endl;
+			openAccounts[source]->toString();
+			openAccounts[destination]->toString();
 		}
 
 		//PROJECT INTEREST ON ACCOUNTS
