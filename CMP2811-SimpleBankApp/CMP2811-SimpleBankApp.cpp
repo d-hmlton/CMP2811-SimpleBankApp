@@ -115,7 +115,7 @@ public:
 	}
 
 	void historySearch(double value) {
-		int sumStore;
+		double sumStore;
 		float hundredthOfValue = value / 100;
 		
 		//Loops through the transactions
@@ -185,16 +185,20 @@ public:
 	}
 
 	void historySearch(double value) {
-		int sumStore;
+		double sumStore;
 		float hundredthOfValue = value / 100;
 
 		//Loops through the transactions
 		for (int i = 0; i < history.size(); i++) {
+			int transactionsFound = 0;
 			sumStore = history[i]->getSum();
 			//If the transaction is within 1% of the provided value's value
 			if ((sumStore < (value + hundredthOfValue)) && (sumStore > (value - hundredthOfValue))) {
 				history[i]->toString();
+				transactionsFound = transactionsFound + 1;
 			}
+			std::cout << transactionsFound << " transaction(s) found." << std::endl;
+			if (transactionsFound == 0) { std::cout << "You can view all transactions on a specific account with \'view\'." << std::endl; }
 		}
 	}
 
