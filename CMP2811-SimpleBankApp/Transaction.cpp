@@ -1,6 +1,7 @@
 #include "Transaction.h"
 
-auto moneyPrintDouble = [](double money)
+//FIX FOR LINKER ERROR
+auto moneyPrintTRANSACTION = [](double money)
 	{
 		std::string toPrint;
 
@@ -24,14 +25,14 @@ Transaction::Transaction(std::string x, double y) {
 	pureTime = time(nullptr); //Grabs the current time
 }
 
-void Transaction::toString() {
+void Transaction::toString() const {
 	std::string timestamp = std::ctime(&pureTime); //Formats the time as a string to be output
 	timestamp.erase(timestamp.find('\n', 0), 1); //ctime, for whatever reason, adds \n at the end. This removes that
 	//Credit to user 'Thantos' on cprogramming forums in 2005 for this idea
 
-	std::cout << "-- " << desc << ": " << moneyPrintDouble(sum) << " on " << timestamp << std::endl;
+	std::cout << "-- " << desc << ": " << moneyPrintTRANSACTION(sum) << " on " << timestamp << std::endl;
 }
 
-double Transaction::getSum() {
+double Transaction::getSum() const {
 	return sum;
 }

@@ -1,7 +1,7 @@
 #include "Current.h"
 
-//Money Print Lambda Function
-auto moneyPrintDouble = [](double money)
+//FIX FOR LINKER ERROR
+auto moneyPrintCURRENT = [](double money)
 	{
 		std::string toPrint;
 
@@ -31,7 +31,7 @@ void Current::deposit(std::string desc, double sum) {
 
 void Current::historySearch(double value) {
 	double sumStore;
-	float hundredthOfValue = value / 100;
+	double hundredthOfValue = value / 100;
 
 	//Loops through the transactions
 	for (int i = 0; i < history.size(); i++) {
@@ -48,7 +48,7 @@ void Current::historySearch(double value) {
 }
 
 void Current::toString() {
-	std::cout << "Current account | Balance: " << moneyPrintDouble(balance) << std::endl;
+	std::cout << "Current account | Balance: " << moneyPrintCURRENT(balance) << std::endl;
 
 	for (int i = 0; i < history.size(); i++) {
 		history[i]->toString();

@@ -129,12 +129,14 @@
   <ItemGroup>
     <ClCompile Include="CMP2811-SimpleBankApp.cpp" />
     <ClCompile Include="Current.cpp" />
+    <ClCompile Include="Functions.cpp" />
     <ClCompile Include="Savings.cpp" />
     <ClCompile Include="Transaction.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Account.h" />
     <ClInclude Include="Current.h" />
+    <ClInclude Include="Functions.h" />
     <ClInclude Include="InterestEarning.h" />
     <ClInclude Include="Savings.h" />
     <ClInclude Include="Transaction.h" />

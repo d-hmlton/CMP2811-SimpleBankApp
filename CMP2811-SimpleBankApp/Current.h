@@ -1,9 +1,7 @@
 #pragma once
 
-#ifndef CURRENT_H
-#define CURRENT_H
-
 #include "Account.h"
+
 class Current : public Account
 {
     int overdraft = -500; //Balance cannot go below this number
@@ -21,6 +19,4 @@ public:
 
 	void computeInterest(int years) {}
 };
-
-#endif //CURRENT_H
 

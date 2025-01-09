@@ -1,13 +1,14 @@
 #pragma once
 
-#ifndef TRANSACTION_H
-#define TRANSACTION_H
-
-#include <string>
-#include <ctime>
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
-#include <iomanip> //For moneyPrinter
-#include <sstream> //For moneyPrinter
+#include <iomanip>
+#include <sstream>
+#include <functional>
+#include <ctime>
+#include <string>
+
+//#include "MoneyPrintLambda.h"
 
 class Transaction
 {
@@ -18,9 +19,7 @@ class Transaction
 public:
 	Transaction(std::string x, double y);
 
-	void toString();
+	void toString() const;
 
-	double getSum();
+	double getSum() const;
 };
-
-#endif //TRANSACTION_H
