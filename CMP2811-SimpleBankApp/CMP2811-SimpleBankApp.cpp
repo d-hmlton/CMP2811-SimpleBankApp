@@ -20,6 +20,9 @@ Good luck!
 #include <cmath> //Used to calculate the projected interest for the 'Savings' class
 #include <string>
 #include <ctime> //Needed to store a 'time_t' timestamp for the 'Transaction' class
+#include <functional>
+
+#include "Transaction.h"
 
 //Wanted a consistent output when handling money, so made a specific function for that purpose
 //Turns values representing money into strings with a pound sign attaches, and handles negatives correctly
@@ -40,6 +43,31 @@ static std::string moneyPrinter(double money) {
 	return toPrint;
 }
 
+
+//LAMBDA FUNCTIONS - or, just functions that standardise printing money, since that was what I used them for
+auto moneyPrinterDouble = [](double money)
+	{
+		std::string toPrint;
+
+		//Negative check
+		bool isNegative = false;
+		if (money < 0) { isNegative = true; money = money * -1; toPrint = "-"; }
+
+		//Double to string with precision
+		std::ostringstream sstream;
+		sstream << std::fixed << std::setprecision(2) << money;
+		std::string moneyStr = sstream.str();
+
+		//Return
+		toPrint = toPrint + "\x9C" + moneyStr;
+		return toPrint;
+	};
+
+auto moneyPrinterInt = [](int money)
+	{
+		return "\x9C" + std::to_string(money);
+	};
+
 //Simplified overload for ints, with NO NEGATIVE CHECK FUNCTIONALITY!! Mainly used for handling messages which know values in advance
 static std::string moneyPrinter(int money) {
 	return "\x9C" + std::to_string(money);
@@ -49,7 +77,9 @@ static std::string moneyPrinter(int money) {
 
 
 //- CLASSES -
+
 //Transaction stores data on each deposit and withdrawal
+/*
 class Transaction
 {
 	std::string desc; //The nature of the transaction
@@ -75,6 +105,7 @@ public:
 		return sum;
 	}
 };
+*/
 
 //InterestEarning is a sub-type of abstract class called an interface - pure virt funcs ONLY
 class InterestEarning
@@ -299,6 +330,7 @@ static int accountDefault() {
 	else { accountNum = recentIndex; } //If something has
 	return accountNum;
 }
+
 
 //- MAIN PROGRAM -
 int main() {
