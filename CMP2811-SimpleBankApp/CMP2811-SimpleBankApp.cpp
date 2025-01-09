@@ -75,10 +75,7 @@ int main() {
 		strcpy(cstr, userCommand.c_str());
 
 		//Exception handling - resets loop if user gives no input. Will crash without this check!!
-		if (cstr[0] == '\0') {
-			std::cout << "No valid input received. Please try again." << std::endl;
-			continue;
-		}
+		if (cstr[0] == '\0') { continue; }
 
 		char* token;
 		token = strtok(cstr, " ");
@@ -326,10 +323,6 @@ int main() {
 
 		//	allow users to search their account history for a transaction
 		//  (this is a stretch task)
-		}
-
-		else {
-			std::cout << "No valid input received. Please try again." << std::endl;
 		}
 	}
 
